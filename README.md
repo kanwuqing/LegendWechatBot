@@ -14,6 +14,7 @@
 ```
 
 **基于 [WCFerry](https://github.com/lich0821/WeChatFerry) 的插件化微信机器人**
+**详细介绍请参见 [github博客](https://kanwuqing.github.io) 或 [gitlab博客](https://kanwuqing.gitlab.io)**
 
 ## ⚠️ 免责声明
 
@@ -99,6 +100,9 @@
     <li>插件模板 - 快速开发脚手架</li>
     <li>自动审批 - 智能好友申请处理</li>
     <li>欢迎助手 - 新成员引导系统</li>
+    <li>中医诊断 - 中医问诊机器人</li>
+    <li>张维为表情 - 文字查询张维为表情包</li>
+    <li>表情包生成 - 传入图片生成表情包</li>
   </ul>
 </details>
 
