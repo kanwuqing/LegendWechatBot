@@ -1,0 +1,4 @@
+Meme:
+  enable: true
+  description: 表情包制作
+  cmd: meme

@@ -1,0 +1,6 @@
+ImageDeal:
+  enable: true
+  folder: images
+  autoDel: true
+  description: 图片相关功能
+  cmd: 图片

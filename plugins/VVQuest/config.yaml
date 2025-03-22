@@ -1,0 +1,6 @@
+VVQuest:
+  enable: false
+  description: '查找张维为表情包'
+  author: 'kanwuqing, Daniel'
+  version: '1.0.0'
+  cmd: 'vv'

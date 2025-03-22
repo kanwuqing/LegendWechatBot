@@ -1,0 +1,8 @@
+GroupWelcome:
+  enable: true
+  welcome-message: "👆点我去Legend机器人主页"
+  url: "https://kanwuqing.github.io/XYBotV2"
+  
+  description: "进群欢迎"
+  author: "Kanwuqing"
+  version: "1.0.0"

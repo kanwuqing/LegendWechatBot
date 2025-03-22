@@ -1,0 +1,14 @@
+autoRestart: true           # 是否开启自动热更新
+protection: true            # 是否开启风控保护
+banWord: true               # 是否开启敏感词过滤
+
+LegendBot:
+  version: "v1.0.0"         # LegendBot版本号
+  disabledPlugins: []       # 禁用插件列表，如有需要请填写插件名
+  black: 10                 # 黑名单阈值，默认10
+  admin: []      # 管理员列表，如有需要请填写微信号
+
+DataBase:
+  LegendBotDB-url: "sqlite:///database/Legendbot.db"
+  msgDB-url: "sqlite+aiosqlite:///database/message.db"
+  keyvalDB-url: "sqlite+aiosqlite:///database/keyval.db"

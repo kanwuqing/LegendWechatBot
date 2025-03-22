@@ -1,0 +1,6 @@
+AcceptFriend:
+  enable: true
+  
+  description: '自动接受好友请求'
+  author: 'kanwuqing'
+  version: '1.0.0'
