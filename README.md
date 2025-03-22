@@ -107,16 +107,6 @@
 </details>
 
 ## 🚀 部署指南
-
-### Docker 部署
-📦 推荐容器化方案 → [XYBot V2 Docker 指南](https://github.com/HenryXiaoYang/XYBotV2?tab=readme-ov-file#-docker-%E9%83%A8%E7%BD%B2%E6%8E%A8%E8%8D%90)
-
-### Linux 部署
-🐧 Linux方案 → [XYBot V2 Linux 指南](https://github.com/HenryXiaoYang/XYBotV2?tab=readme-ov-file#-linux-%E9%83%A8%E7%BD%B2%E6%AD%A5%E9%AA%A4)
-
-### Mac 部署
-🍎 MacOS方案 → [XYBot V2 Mac 指南](https://github.com/HenryXiaoYang/XYBotV2)
-
 ### Windows 部署
 
 #### 1️⃣ 环境准备
