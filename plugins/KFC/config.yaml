@@ -1,0 +1,4 @@
+KFC:
+  description: "肯德基疯狂星期四文案"
+  enable: true
+  cmd: 'kfc'

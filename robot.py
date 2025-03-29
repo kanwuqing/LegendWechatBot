@@ -44,10 +44,11 @@ async def run():
             msg = bot.get_msg()
             asyncio.create_task(legendBot.process_message(msg))
         except Empty:
+            await asyncio.sleep(0.5)
             continue
         except Exception as e:
             logger.warning("获取新消息失败 {}", e)
             await asyncio.sleep(5)
             continue
-
-        await asyncio.sleep(0.5)
+        finally:
+            await asyncio.sleep(0.5)

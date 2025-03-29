@@ -1,9 +1,8 @@
 import yaml
 import xml.etree.ElementTree as ET
-from datetime import datetime
 
 from loguru import logger
-
+import asyncio
 from wcferry import Wcf, WxMsg
 from utils.LegendBot import LegendWechatBot
 from utils.decorators import on_system_message
@@ -46,11 +45,11 @@ class GroupWelcome(PluginBase):
 
         # 如果消息内容中包含邀请加入群聊的信息，则解析成员信息
         if re.findall(r'"(.*?)"邀请"(.*?)"加入了群聊', message.content):  # 通过邀请加入群聊
-            new_members = self._parse_member_info(bot, message, "invitation")
+            new_members = await self._parse_member_info(bot, message, "invitation")
         elif re.findall(r'"(.*)"加入了群聊', message.content):  # 直接加入群聊
-            new_members = self._parse_member_info(bot, message, "direct")
+            new_members = await self._parse_member_info(bot, message, "direct")
         elif re.findall(r'"(.*?)"通过(.*?)加入群聊', message.content):  # 通过邀请链接加入群聊
-            new_members = self._parse_member_info(bot, message, "inviters")
+            new_members = await self._parse_member_info(bot, message, "inviters")
         else:
             logger.warning(f"未知的入群方式: ")
             return
@@ -62,18 +61,18 @@ class GroupWelcome(PluginBase):
             wxid = member["wxid"]
             nickname = member["nickname"]
 
-            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            now = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
             img = bot.query_sql('MicroMsg.db', f'SELECT bigHeadImgUrl FROM ContactHeadImgUrl WHERE usrName="{wxid}";')
             if img:
                 img = img[0]['bigHeadImgUrl']
             else:
                 img = ''
             logger.debug(f"{nickname} {str(wxid)} {img} 加入了群聊")
-            bot.send_rich_text(nickname, str(wxid), f"👏欢迎 {nickname} 加入群聊!🎉", f"⌚时间：{now}\n{self.welcome_message}\n🔗点击查看更多信息", 'https://kanwuqing.github.io', img, message.roomid)
+            bot.send_rich_text(nickname, str(wxid), f"👏欢迎 {nickname} 加入群聊!🎉", f"⌚时间：{now}\n{self.welcome_message}\n🔗点击查看使用与开发文档", 'https://kanwuqing.github.io/tags/docs/', img, message.roomid)
         return
 
     @staticmethod
-    def _parse_member_info(bot: Wcf, message: WxMsg, link: str):
+    async def _parse_member_info(bot: Wcf, message: WxMsg, link: str):
         # 定义一个空列表，用于存储用户信息
         user = []
         # 直接加群
@@ -94,7 +93,7 @@ class GroupWelcome(PluginBase):
         # 定义一个空列表，用于存储用户信息
         users = []
         # 暂停3秒
-        time.sleep(3)
+        await asyncio.sleep(3)
         # 获取群聊成员信息
         mem = bot.get_chatroom_members(message.roomid)
         # 打印群聊成员信息

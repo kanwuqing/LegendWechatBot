@@ -1,0 +1,7 @@
+AI:
+  enable: true
+  description: "和AI对话"
+  url: 
+  api_key: 
+  models:
+    nickname: modelName

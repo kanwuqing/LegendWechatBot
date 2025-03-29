@@ -173,3 +173,6 @@ cython_debug/
 config/config.yaml
 plugins/ImageDeal/images/*
 plugins/Meme/temp
+plugins/Weather/config.yaml
+plugins/AI/config.yaml
+try.py

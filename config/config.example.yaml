@@ -7,6 +7,7 @@ LegendBot:
   disabledPlugins: []       # 禁用插件列表，如有需要请填写插件名
   black: 10                 # 黑名单阈值，默认10
   admin: []      # 管理员列表，如有需要请填写微信号
+  signPoint: 10             # 签到积分
 
 DataBase:
   LegendBotDB-url: "sqlite:///database/Legendbot.db"

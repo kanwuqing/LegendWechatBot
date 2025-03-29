@@ -19,6 +19,7 @@ import uuid
 from utils.LegendBot import LegendWechatBot, WxMsg
 from loguru import logger
 from utils.decorators import run_sync
+from database.LegendBotDB import LegendBotDB
 
 def construct_parser() -> Alconna:
     sub_commands: list[Subcommand] = []
@@ -50,7 +51,7 @@ def construct_parser() -> Alconna:
         Subcommand("generate", *sub_commands, alias=["make"], help_text="制作表情"),
         Subcommand("run", alias=["start"], help_text="启动 web server"),
         meta=CommandMeta(
-            description="表情包生成器",
+            description="表情包生成器, 调用一次消耗2积分",
             example="meme generate petpet --images /path/to/image/file",
         ),
     )
@@ -185,6 +186,7 @@ async def handle_message(bot: LegendWechatBot, msg: WxMsg, to, at):
                     bot.send_emotion(os.path.abspath(filename), to)
                 else:
                     bot.send_image(os.path.abspath(filename), to)
+                LegendBotDB.add_points(msg.sender, -2)
                 os.remove(filename)
 
         elif subcommand == "generate":
@@ -218,5 +220,6 @@ async def handle_message(bot: LegendWechatBot, msg: WxMsg, to, at):
                         bot.send_emotion(os.path.abspath(filename), to)
                     else:
                         bot.send_image(os.path.abspath(filename), to)
+                    LegendBotDB().add_points(msg.sender, -2)
                     os.remove(filename)
         return

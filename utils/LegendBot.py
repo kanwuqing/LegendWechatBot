@@ -25,7 +25,7 @@ class LegendWechatBot(Wcf):
         :param at_list: 要@的wxid, @所有人的wxid为：notify@all
         """
         # msg 中需要有 @ 名单中一样数量的 @
-        time.sleep(random.randint(1, 5) / random.randint(1, 10))
+        time.sleep(random.randint(1, 3) / random.randint(2, 10))
         ats = ""
         at = ""
         if isinstance(at_list, str):
@@ -62,29 +62,38 @@ class LegendBot:
             else:
                 to, at = msg.sender, None
 
-            logger.debug("处理消息: {} - {}\n------------------------\n{}", msg.type, msg.content, msg.xml)
+            logger.debug("处理消息: {} - {}", msg.type, msg.content)
 
-                
-            async with sem['processMsg']:
 
-                if msg.type == 10000 or msg.type == 10002:  # 系统消息
-                    logger.debug(f'收到系统消息')
-                    await EventManager.emit("system_message", self.bot, msg)
-                if msg.type == 37:  # 好友请求
-                    logger.debug(f'收到好友请求')
-                    await EventManager.emit("other_message", self.bot, msg)
+            if msg.type == 10000 or msg.type == 10002:  # 系统消息
+                logger.debug(f'收到系统消息')
+                await EventManager.emit("system_message", self.bot, msg)
+            if msg.type == 37:  # 好友请求
+                logger.debug(f'收到好友请求')
+                await EventManager.emit("other_message", self.bot, msg)
+
+            if (
+                (msg.from_group() and self.DB.get_chatroom_whitelist(to) and self.DB.get_black(msg.sender) <= config.RobotConfig['black'])  # 群聊且满足条件
+                or (not msg.from_group() and self.DB.get_black(msg.sender) <= config.RobotConfig['black'])  # 私聊且满足条件
+                or msg.sender in config.admin  # 来自管理员
+            ):
                 if msg.type == 1:  # 文本消息
                     await self.msgDB.save_message(msg, self.bot.self_wxid)
 
                     if msg.content == '重启程序' and msg.sender in config.admin:
                         restartProgram()
+                    
+                    elif '加群' in msg.content and msg.sender in config.admin:
+                        self.DB.set_chatroom_whitelist(to, True)
+                        self.bot.sendMsg('已添加到白名单', to, at)
+                        return
 
                     if dfa.exists(msg.content):
                         self.DB.add_black(msg.sender, 2)
-                        self.bot.sendMsg(f'说话太刑了, 黑名单指数+2, 请注意\n{dfa.filter_all(msg.content)}', to, at)
+                        self.bot.sendMsg(f'因为言语过激, 黑名单指数+2, 请注意\n{dfa.filter_all(msg.content)}', to, at)
                         return
-                
-                    if ((msg.from_group() and msg.is_at(self.bot.self_wxid)) or not msg.from_group()) and self.DB.get_black(msg.sender) <= config.RobotConfig['black']:
+
+                    if ((msg.from_group() and msg.is_at(self.bot.self_wxid)) or not msg.from_group()):
                         if self.DB.get_running(msg.sender):
                             self.DB.add_black(msg.sender, 1)
                             self.bot.sendMsg('你还有正在运行的任务未完成, 黑名单指数+1, 请注意', to, at)
@@ -107,7 +116,7 @@ class LegendBot:
 
                     if dfa.exists(content):
                         self.DB.add_black(msg.sender, 2)
-                        self.bot.sendMsg(f'说话太刑了, 黑名单指数+2, 请注意\n{dfa.filter_all(msg.content)}', to, at)
+                        self.bot.sendMsg(f'因为言语过激, 黑名单指数+2, 请注意\n{dfa.filter_all(msg.content)}', to, at)
                         return
                 
                     if ((msg.from_group() and msg.is_at(self.bot.self_wxid)) or not msg.from_group()) and self.DB.get_black(msg.sender) <= config.RobotConfig['black']:
@@ -117,6 +126,10 @@ class LegendBot:
                             return
                     
                     await EventManager.emit("quote_message", self.bot, msg)
+
+            elif self.DB.get_black(msg.sender) > config.RobotConfig['black'] and msg.from_group():
+                self.bot.sendMsg('你坏事做尽， 被移除群聊， 欢迎找kanwuqing面议解封, 有偿解封所得分发给群友作精神补偿', to, at)
+                self.bot.del_chatroom_members(msg.roomid, msg.sender)
 
         except Exception as e:
             logger.error(f"处理消息时发生错误: {e}")

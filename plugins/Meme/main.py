@@ -29,6 +29,9 @@ class Meme(PluginBase):
         self.enable = config["enable"]
 
         if self.enable:
+            pth = os.path.join(os.path.dirname(__file__), 'temp')
+            if not os.path.exists(pth):
+                os.mkdir(pth)
             os1 = os.getcwd()
             sys1 = sys.path
             os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -36,8 +39,6 @@ class Meme(PluginBase):
 
             meme_processor = importlib.import_module("meme_processor")
             self.handle_message = meme_processor.handle_message
-            if not os.path.exists('temp'):
-                os.mkdir('temp')
 
             os.chdir(os1)
             sys.path = sys1

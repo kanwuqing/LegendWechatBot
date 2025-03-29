@@ -1,0 +1,5 @@
+Weather:
+  description: 天气查询
+  enable: true
+  cmd: 天气
+  key: 

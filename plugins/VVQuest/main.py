@@ -14,9 +14,11 @@ from utils.LegendBot import LegendWechatBot
 import re
 import os
 import threading
+import aiohttp
+import traceback
+import requests
 
 class VVQuest(PluginBase):
-
     # changelog
     # 1.0.0 2025/3/7 初始版本
 
@@ -28,6 +30,7 @@ class VVQuest(PluginBase):
         self.config = pluginConfig['VVQuest']
         self.enable = self.config['enable']
         
+        '''
         if self.enable:
             from .services.image_search import ImageSearch
             
@@ -36,33 +39,48 @@ class VVQuest(PluginBase):
             if not os.path.exists(self.im._get_cache_file()):
                 logger.info('未找到缓存, 正在生成')
                 self.im.generate_cache()
+        '''
         
     @on_text_message
     async def VVQuest(self, bot: LegendWechatBot, msg: WxMsg):
-        if msg.from_group():
-            to, at = msg.roomid, msg.sender
-        else:
-            to, at = msg.sender, None
-        
-        if not self.enable:
-            return
+        try:
+            if msg.from_group():
+                to, at = msg.roomid, msg.sender
+            else:
+                to, at = msg.sender, None
             
-        if msg.content == 'vv':
-            bot.sendMsg(f'智能检索张维为表情包, 项目连接:https://github.com/DanielZhangyc/VVQuest\n使用方法: vv [关键词]\n注意事项: 请不要频繁请求', to, at)
-            return
-        if msg.content.startswith('vv '):
-            query = msg.content[3:]
-            if query == '':
+            if not self.enable:
                 return
-
-            LegendBotDB().set_running(msg.sender, True)
-            # task = threading.Thread(target=self.getRes, args=(bot, msg, to, at))
-            # task.start()
-            # task.join()
-            query = msg.content[3:]
-            if query == '':
+            
+            if msg.content == 'vv':
+                bot.sendMsg(f'智能检索张维为表情包, 项目连接:https://github.com/DanielZhangyc/VVQuest\n使用方法: vv [关键词]\n注意事项: 请不要频繁请求', to, at)
                 return
+            if msg.content.startswith('vv '):
+                query = msg.content[3:]
+                if query == '':
+                    return
 
+                LegendBotDB().set_running(msg.sender, True)
+                # task = threading.Thread(target=self.getRes, args=(bot, msg, to, at))
+                # task.start()
+                # task.join()
+
+                
+                # async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
+                #     async with session.get(f'https://api.zvv.quest/search?q={query}&n=1') as response:
+                #         res = await response.json()
+                
+                res = await run_sync(requests.get)(f'https://api.zvv.quest/search?q={query}&n=1', timeout=20)
+                # res = requests.get(f'https://api.zvv.quest/search?q={query}&n=1').json()
+
+                logger.debug(res)
+                res = res.json()
+                
+                bot.send_image(res['data'][0], to)
+                LegendBotDB().add_points(msg.sender, -1)
+
+                LegendBotDB().set_running(msg.sender, False)
+        except TimeoutError:
             res = await run_sync(self.im.search)(query, 1)
 
             if len(res) == 0:
@@ -87,8 +105,9 @@ class VVQuest(PluginBase):
 
             # 删除临时文件
             os.remove(abs_temp_file_path)
-
-            LegendBotDB().set_running(msg.sender, False)
+        except Exception as e:
+            logger.error(e)
+            logger.error(traceback.format_exc())
 
             
     '''

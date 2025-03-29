@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Union
 
 from loguru import logger
-from sqlalchemy import Column, String, Integer, DateTime, create_engine, JSON, Boolean
+from sqlalchemy import Column, String, Integer, DateTime, create_engine, JSON, Boolean, Text
 from sqlalchemy import update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import declarative_base
@@ -21,10 +21,10 @@ class User(Base):
     wxid = Column(String(20), primary_key=True, nullable=False, unique=True, index=True, autoincrement=False, comment='wxid')
     points = Column(Integer, nullable=False, default=0, comment='points')
     running = Column(Integer, nullable=False, default=False, comment='running')
-    signin_stat = Column(DateTime, nullable=False, default=datetime.datetime.fromtimestamp(0), comment='signin_stat')
-    signin_streak = Column(Integer, nullable=False, default=0, comment='signin_streak')
     blacked = Column(Integer, nullable=False, default=-2, comment='black')
-    llm_thread_id = Column(JSON, nullable=False, default=lambda: {}, comment='llm_thread_id')
+    lastSign = Column(DateTime, default=None, comment='lastSign')
+    maxSign = Column(Integer, nullable=False, default=0, comment='maxSign')
+    fortune = Column(Text, default=None, comment='fortune')
 
 
 class Chatroom(Base):
@@ -33,7 +33,6 @@ class Chatroom(Base):
     chatroom_id = Column(String(20), primary_key=True, nullable=False, unique=True, index=True, autoincrement=False, comment='chatroom_id')
     members = Column(JSON, nullable=False, default=list, comment='members')
     whitelist = Column(Boolean, nullable=False, default=False, comment='whitelist')
-    llm_thread_id = Column(JSON, nullable=False, default=lambda: {}, comment='llm_thread_id')
 
 
 class LegendBotDB(metaclass=Singleton):
@@ -43,7 +42,7 @@ class LegendBotDB(metaclass=Singleton):
         self.DBSession = sessionmaker(bind=self.engine)
 
         # 创建表
-        self.recreate()
+        # self.recreate()
         if flag:
             self.reset_all_running_stat()
         # logger.success("数据库初始化成功")
@@ -225,52 +224,52 @@ class LegendBotDB(metaclass=Singleton):
         session = self.DBSession()
         try:
             user = session.query(User).filter_by(wxid=wxid).first()
-            return user.signin_stat if user else datetime.datetime.fromtimestamp(0)
+            if not user:
+                return [None, None, None]
+            return [user.lastSign, user.maxSign, user.fortune]
         finally:
             session.close()
 
-    def set_signin_stat(self, wxid: str, signin_time: datetime.datetime) -> bool:
+    def set_signin_stat(self, wxid: str, fortune: str) -> bool:
         """Thread-safe set user's signin time"""
-        return self._execute_in_queue(self._set_signin_stat, wxid, signin_time)
+        return self._execute_in_queue(self._set_signin_stat, wxid, fortune)
 
-    def _set_signin_stat(self, wxid: str, signin_time: datetime.datetime) -> bool:
+    def _set_signin_stat(self, wxid: str, fortune: str) -> bool:
         session = self.DBSession()
         try:
-            result = session.execute(
-                update(User)
-                .where(User.wxid == wxid)
-                .values(
-                    signin_stat=signin_time,
-                    signin_streak=User.signin_streak
+            user = session.query(User).filter_by(wxid=wxid).first()
+            if user:
+                # 获取实际的 lastSign 值
+                last_sign = user.lastSign
+                max_sign = user.maxSign
+                points = user.points
+
+                # 计算新的 maxSign 和积分
+                new_max_sign = max_sign + 1 if last_sign and datetime.datetime.today().date() == (last_sign + datetime.timedelta(days=1)).date() else max_sign
+                new_points = points + config.RobotConfig['signPoint'] + min(10, new_max_sign)
+
+                # 更新用户数据
+                session.execute(
+                    update(User)
+                    .where(User.wxid == wxid)
+                    .values(
+                        fortune=fortune,
+                        maxSign=new_max_sign,
+                        lastSign=datetime.datetime.today(),
+                        points=new_points
+                    )
                 )
-            )
-            if result.rowcount == 0:
-                user = User(
-                    wxid=wxid,
-                    signin_stat=signin_time,
-                    signin_streak=0
-                )
+            else:
+                # 如果用户不存在，则创建新用户
+                user = User(wxid=wxid, fortune=fortune, maxSign=1, lastSign=datetime.datetime.today(), points=11)
                 session.add(user)
-            logger.info(f"数据库: 用户{wxid}登录时间设置为{signin_time}")
+
+            logger.info(f"数据库: 用户{wxid}签到状态设置成功")
             session.commit()
-            return True
+            return [user.lastSign, user.maxSign, user.fortune]
         except SQLAlchemyError as e:
             session.rollback()
-            logger.error(f"数据库: 用户{wxid}登录时间设置失败, 错误: {e}")
-            return False
-        finally:
-            session.close()
-
-    def reset_all_signin_stat(self) -> bool:
-        """Reset all users' signin status"""
-        session = self.DBSession()
-        try:
-            session.query(User).update({User.signin_stat: datetime.datetime.fromtimestamp(0)})
-            session.commit()
-            return True
-        except Exception as e:
-            session.rollback()
-            logger.error(f"数据库: 重置所有用户登录时间失败, 错误: {e}")
+            logger.error(f"数据库: 用户{wxid}状态设置失败, 错误: {e}")
             return False
         finally:
             session.close()
@@ -284,7 +283,7 @@ class LegendBotDB(metaclass=Singleton):
             return True
         except Exception as e:
             session.rollback()
-            logger.error(f"数据库: 重置所有用户跑步状态失败, 错误: {e}")
+            logger.error(f"数据库: 重置所有用户运行状态失败, 错误: {e}")
 
     def get_leaderboard(self, count: int) -> list:
         """Get points leaderboard"""
@@ -342,125 +341,17 @@ class LegendBotDB(metaclass=Singleton):
         finally:
             session.close()
 
-    def get_llm_thread_id(self, wxid: str, namespace: str = None) -> Union[dict, str]:
-        """Get LLM thread id for user or chatroom"""
-        session = self.DBSession()
-        try:
-            # Check if it's a chatroom ID
-            if wxid.endswith("@chatroom"):
-                chatroom = session.query(Chatroom).filter_by(chatroom_id=wxid).first()
-                if namespace:
-                    return chatroom.llm_thread_id.get(namespace, "") if chatroom else ""
-                else:
-                    return chatroom.llm_thread_id if chatroom else {}
-            else:
-                # Regular user
-                user = session.query(User).filter_by(wxid=wxid).first()
-                if namespace:
-                    return user.llm_thread_id.get(namespace, "") if user else ""
-                else:
-                    return user.llm_thread_id if user else {}
-        finally:
-            session.close()
-
-    def save_llm_thread_id(self, wxid: str, data: str, namespace: str) -> bool:
-        """Save LLM thread id for user or chatroom"""
-        session = self.DBSession()
-        try:
-            if wxid.endswith("@chatroom"):
-                chatroom = session.query(Chatroom).filter_by(chatroom_id=wxid).first()
-                if not chatroom:
-                    chatroom = Chatroom(
-                        chatroom_id=wxid,
-                        llm_thread_id={}
-                    )
-                    session.add(chatroom)
-                # 创建新字典并更新
-                new_thread_ids = dict(chatroom.llm_thread_id or {})
-                new_thread_ids[namespace] = data
-                chatroom.llm_thread_id = new_thread_ids
-            else:
-                user = session.query(User).filter_by(wxid=wxid).first()
-                if not user:
-                    user = User(
-                        wxid=wxid,
-                        llm_thread_id={}
-                    )
-                    session.add(user)
-                # 创建新字典并更新
-                new_thread_ids = dict(user.llm_thread_id or {})
-                new_thread_ids[namespace] = data
-                user.llm_thread_id = new_thread_ids
-
-            session.commit()
-            logger.info(f"数据库: 成功保存 {wxid} 的 llm thread id")
-            return True
-        except Exception as e:
-            session.rollback()
-            logger.error(f"数据库: 保存用户llm thread id失败, 错误: {e}")
-            return False
-        finally:
-            session.close()
-
-    def delete_all_llm_thread_id(self):
-        """Clear llm thread id for everyone"""
-        session = self.DBSession()
-        try:
-            session.query(User).update({User.llm_thread_id: {}})
-            session.query(Chatroom).update({Chatroom.llm_thread_id: {}})
-            session.commit()
-            return True
-        except Exception as e:
-            session.rollback()
-            logger.error(f"数据库: 清除所有用户llm thread id失败, 错误: {e}")
-            return False
-        finally:
-            session.close()
-
-    def get_signin_streak(self, wxid: str) -> int:
-        """Thread-safe get user's signin streak"""
-        return self._execute_in_queue(self._get_signin_streak, wxid)
-
-    def _get_signin_streak(self, wxid: str) -> int:
-        session = self.DBSession()
-        try:
-            user = session.query(User).filter_by(wxid=wxid).first()
-            return user.signin_streak if user else 0
-        finally:
-            session.close()
-
-    def set_signin_streak(self, wxid: str, streak: int) -> bool:
-        """Thread-safe set user's signin streak"""
-        return self._execute_in_queue(self._set_signin_streak, wxid, streak)
-
-    def _set_signin_streak(self, wxid: str, streak: int) -> bool:
-        session = self.DBSession()
-        try:
-            result = session.execute(
-                update(User)
-                .where(User.wxid == wxid)
-                .values(signin_streak=streak)
-            )
-            if result.rowcount == 0:
-                user = User(wxid=wxid, signin_streak=streak)
-                session.add(user)
-            logger.info(f"数据库: 用户{wxid}连续签到天数设置为{streak}")
-            session.commit()
-            return True
-        except SQLAlchemyError as e:
-            session.rollback()
-            logger.error(f"数据库: 用户{wxid}连续签到天数设置失败, 错误: {e}")
-            return False
-        finally:
-            session.close()
 
     # CHATROOM
 
     def get_chatroom_list(self) -> list:
         """Get list of all chatrooms"""
+        return self._execute_in_queue(self._get_chatroom_list)
+    
+    def _get_chatroom_list(self):
         session = self.DBSession()
         try:
-            chatrooms = session.query(Chatroom).all()
+            chatrooms = session.query(Chatroom).filter_by(whitelist=True).all()
             return [chatroom.chatroom_id for chatroom in chatrooms]
         finally:
             session.close()
@@ -476,20 +367,23 @@ class LegendBotDB(metaclass=Singleton):
 
     def get_chatroom_whitelist(self, chatroom_id: str) -> bool:
         """Set members of a chatroom"""
+        return self._execute_in_queue(self._get_chatroom_whitelist, chatroom_id)
+    
+    def _get_chatroom_whitelist(self, chatroom_id: str) -> bool:
+        """Set members of a chatroom"""
         session = self.DBSession()
         try:
             chatroom = session.query(Chatroom).filter_by(chatroom_id=chatroom_id).first()
-            return set(chatroom.whitelist) if chatroom else False
+            return chatroom.whitelist if chatroom else False
         finally:
             session.close()
     
-
     def set_chatroom_whitelist(self, chatroom_id: str, whitelist: bool) -> bool:
         session = self.DBSession()
         try:
             chatroom = session.query(Chatroom).filter_by(chatroom_id=chatroom_id).first()
             if not chatroom:
-                chatroom = Chatroom(whitelist=whitelist)
+                chatroom = Chatroom(chatroom_id=chatroom_id, whitelist=whitelist)
                 session.add(chatroom)
             chatroom.whitelist = whitelist  # Convert set to list for JSON storage
             logger.info(f"Database: Set chatroom {chatroom_id} whitelist successfully")

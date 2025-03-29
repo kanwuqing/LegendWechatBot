@@ -34,7 +34,7 @@ class LegendSemaphore(asyncio.Semaphore):
         self.release()
 
 sem = {
-    'processMsg': LegendSemaphore(5, 8),
+    'processAI': LegendSemaphore(5, 6),
     'GLM-4-Flash': asyncio.Semaphore(200),
     'GLM-4V-Flash': asyncio.Semaphore(10),
     'CogView-3-Flash': asyncio.Semaphore(5),
