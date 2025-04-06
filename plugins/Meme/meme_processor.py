@@ -143,6 +143,8 @@ def generate_meme(
         img: Path = Path().cwd() / 'plugins/ImageDeal/images' / msg.sender / image
         if not Path(img).exists():
             return f'图片路径 "{image}" 不存在！', None
+        if not img.suffix in ['.jpg', '.png', '.bmp']:
+            return f'图片格式 "{img.suffix[1: ]}" 不支持！', None
         imgs.append(img)
 
     try:

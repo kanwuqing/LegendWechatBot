@@ -21,8 +21,8 @@ def initLogger():
     error_log_path = os.path.join(log_dir, f"{date_str}_error.log")
 
     # 添加日志文件处理器
-    logger.add(all_log_path, level="INFO", format="{time:YYYY-MM-DD HH:mm:ss} | <level>{level: <8}</level> | <cyan>{module}</cyan>:<magenta>{line}</magenta> - <level>{message}</level>")
-    logger.add(error_log_path, level="ERROR", format="{time:YYYY-MM-DD HH:mm:ss} | <level>{level: <8}</level> | <cyan>{module}</cyan>:<magenta>{line}</magenta> - <level>{message}</level>")
+    logger.add(all_log_path, level="INFO", format="{time:YYYY-MM-DD HH:mm:ss} | <level>{level: <8}</level> | <cyan>{module}</cyan>:<magenta>{line}</magenta> - <level>{message}</level>", mode="a")
+    logger.add(error_log_path, level="ERROR", format="{time:YYYY-MM-DD HH:mm:ss} | <level>{level: <8}</level> | <cyan>{module}</cyan>:<magenta>{line}</magenta> - <level>{message}</level>", mode="a")
     # 添加自定义控制台输出处理器
     logger.add(sys.stdout, level="DEBUG", format="{time:YYYY-MM-DD HH:mm:ss} | <level>{level: <8}</level> | <cyan>{module}</cyan>:<magenta>{line}</magenta> - <level>{message}</level>")
 

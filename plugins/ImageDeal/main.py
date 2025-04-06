@@ -46,36 +46,48 @@ class ImageDeal(PluginBase):
         else:
             to, at = msg.sender, None
         
-        if msg.content == '图片':
-            bot.sendMsg('图片相关功能, 详细请发送具体命令前缀查看`下载图片` 下载图片\n`删除图片 图片名.后缀名` 删除图片\n`重命名图片 图片名.后缀名 新图片名.后缀名` 重命名图片', to, at)
-
-        #* 下载图片
-        if msg.content == '下载图片':
-            bot.sendMsg('下载图片, 用于制作表情包等插件功能\n命令格式: `下载图片`, 并引用需要下载的图片(必须是自己发的, 引用他人发的无效, 引用文件无效)\n每个人最多同时存在5张图片, 总大小不超过20MB', to, at)
-            return
+        if msg.content == '多媒体':
+            bot.sendMsg('多媒体相关功能, 详细请发送具体命令前缀查看`下载多媒体` 下载多媒体\n`删除多媒体 多媒体名.后缀名` 删除多媒体\n`重命名多媒体 多媒体名.后缀名 新多媒体名.后缀名` 重命名多媒体\n`已有多媒体` 查看已有多媒体', to, at)
         
-        #* 删除图片
-        if msg.content == '删除图片':
-            bot.sendMsg('删除图片, 命令格式: `删除图片 图片名.后缀名(在下载成功后返回)`', to, at)
+
+        #* 下载多媒体
+        if msg.content == '下载多媒体':
+            bot.sendMsg('下载多媒体, 用于制作表情包等插件功能\n命令格式: `下载多媒体`, 并引用需要下载的多媒体(必须是自己发的, 引用他人发的无效, 引用文件无效)\n每个人最多同时存在5张多媒体, 总大小不超过20MB', to, at)
             return
-        if msg.content.startswith('删除图片 '):
-            msg.content = msg.content.replace('删除图片 ', '')
+
+        #* 已有多媒体
+        if msg.content == '已有多媒体':
+            res = '已有多媒体: 多媒体名 多媒体大小\n'
+            #遍历文件夹, 获取多媒体名称与大小
+            if os.path.exists(os.path.join(self.folder, msg.sender)):
+                for root, _, files in os.walk(os.path.join(self.folder, msg.sender)):
+                    for file in files:
+                        res += f"{file} {os.path.getsize(os.path.join(root, file)) / 1024:.2f}KB\n"
+            bot.sendMsg(res, to, at)
+            
+        
+        #* 删除多媒体
+        if msg.content == '删除多媒体':
+            bot.sendMsg('删除多媒体, 命令格式: `删除多媒体 多媒体名.后缀名(在下载成功后返回)`', to, at)
+            return
+        if msg.content.startswith('删除多媒体 '):
+            msg.content = msg.content.replace('删除多媒体 ', '')
             if not os.path.exists(os.path.join(self.folder, msg.sender, msg.content)):
-                bot.sendMsg('图片不存在', to, at)
+                bot.sendMsg('多媒体不存在', to, at)
                 return
 
             os.remove(os.path.join(self.folder, msg.sender, msg.content))
             bot.sendMsg('删除成功', to, at)
             return
 
-        #* 重命名图片
-        if msg.content == '重命名图片':
-            bot.sendMsg('重命名图片, 命令格式: `重命名图片 图片名.后缀名(在下载成功后返回) 新图片名.后缀名(命名限制为windows限制, 另外不能有空格)`', to, at)
+        #* 重命名多媒体
+        if msg.content == '重命名多媒体':
+            bot.sendMsg('重命名多媒体, 命令格式: `重命名多媒体 多媒体名.后缀名(在下载成功后返回) 新多媒体名.后缀名(命名限制为windows限制, 另外不能有空格)`', to, at)
             return
-        if msg.content.startswith('重命名图片 '):
-            msg.content = msg.content[6: ]
+        if msg.content.startswith('重命名多媒体 '):
+            msg.content = msg.content[7: ]
             if not os.path.exists(os.path.join(self.folder, msg.sender, msg.content.split(' ')[0])):
-                bot.sendMsg('图片不存在', to, at)
+                bot.sendMsg('多媒体不存在', to, at)
                 return
 
             if len(msg.content.split(' ')) != 2:
@@ -87,7 +99,7 @@ class ImageDeal(PluginBase):
             
             
             if os.path.exists(os.path.join(self.folder, msg.sender, msg.content.split(' ')[1])):
-                bot.sendMsg('新图片名已存在', to, at)
+                bot.sendMsg('新多媒体名已存在', to, at)
                 return
             
             filename = msg.content.split(' ')[1]
@@ -96,7 +108,7 @@ class ImageDeal(PluginBase):
                 bot.sendMsg('重命名成功', to, at)
                 return
             else:
-                bot.sendMsg('新图片名包含非法字符', to, at)
+                bot.sendMsg('新多媒体名包含非法字符', to, at)
                 return
     
     def is_valid_filename(self, filename) -> bool:
@@ -120,7 +132,7 @@ class ImageDeal(PluginBase):
         return True
 
     @on_quote_message
-    async def downloadImage(self, bot: LegendWechatBot, msg: WxMsg):
+    async def downloadMedia(self, bot: LegendWechatBot, msg: WxMsg):
         try:
             if not self.enable:
                 return
@@ -135,12 +147,12 @@ class ImageDeal(PluginBase):
             msg.content = bs.find('title').text
             quote = bs.find('refermsg')
 
-            if msg.content == '下载图片':
+            if msg.content == '下载多媒体':
                 if quote is None:
-                    bot.sendMsg('引用无效, 请重新引用需要下载的图片', to, at)
+                    bot.sendMsg('引用无效, 请重新引用需要下载的多媒体', to, at)
                     return
-                if quote.find('type').text != '3':
-                    bot.sendMsg('引用无效, 请重新引用需要下载的图片', to, at)
+                if quote.find('type').text != '3' and quote.find('type').text != '43':
+                    bot.sendMsg('引用无效, 请重新引用需要下载的多媒体', to, at)
                     return
                 if quote.find('chatusr').text != msg.sender:
                     bot.sendMsg('引用无效, 这不是你发的', to, at)
@@ -149,8 +161,8 @@ class ImageDeal(PluginBase):
                 if not os.path.exists(os.path.join(self.folder, msg.sender)):
                     os.mkdir(os.path.join(self.folder, msg.sender))
 
-                if len(os.listdir(os.path.join(self.folder, msg.sender))) > 5 or self.calcSize(msg.sender) > 20:
-                    bot.sendMsg('图片数量或大小超过限制, 请删除一些图片', to, at)
+                if len(os.listdir(os.path.join(self.folder, msg.sender))) > 10 or self.calcSize(msg.sender) > 20:
+                    bot.sendMsg('多媒体数量或大小超过限制, 请删除一些多媒体', to, at)
                     return
                 
                 msgId = int(quote.find('svrid').text)
@@ -160,19 +172,25 @@ class ImageDeal(PluginBase):
                 quoteMsg = await MessageDB().get_messages(msg_id=msgId)
 
                 if not quoteMsg:
-                    bot.sendMsg('引用无效, 请重新引用需要下载的图片', to, at)
+                    bot.sendMsg('引用无效, 请重新引用需要下载的多媒体', to, at)
                     return
-
-                res = await run_sync(bot.download_image)(msgId, quoteMsg[0].extra, os.path.abspath(os.path.join(self.folder, msg.sender)), 10)
+                
+                res = None
+                
+                if quoteMsg[0].type == 3:
+                    res = await run_sync(bot.download_image)(msgId, quoteMsg[0].extra, os.path.abspath(os.path.join(self.folder, msg.sender)), 30)
+                
+                elif quoteMsg[0].type == 43:
+                    res = await run_sync(bot.download_video)(msgId, quoteMsg[0].thumb, os.path.abspath(os.path.join(self.folder, msg.sender)), 30)
 
                 if not res:
-                    bot.sendMsg('图片下载失败', to, at)
-                    logger.warning(f"图片下载失败, msgId: {msgId}")
+                    bot.sendMsg('多媒体下载失败', to, at)
+                    logger.warning(f"多媒体下载失败, msgId: {msgId}")
                 else:
-                    bot.sendMsg(f'图片下载完成, 保存为{os.path.basename(res)}', to, at)
+                    bot.sendMsg(f'多媒体下载完成, 保存为{os.path.basename(res)}', to, at)
         except Exception as e:
-            logger.error(f"图片下载失败, msgId: {msgId}, error: {e}, traceback: {traceback.format_exc()}")
-            bot.sendMsg('图片下载失败', to, at)
+            logger.error(f"多媒体下载失败, msgId: {msgId}, error: {e}, traceback: {traceback.format_exc()}")
+            bot.sendMsg('多媒体下载失败', to, at)
             return
 
     def calcSize(self, wxid):

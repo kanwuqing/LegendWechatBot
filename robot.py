@@ -8,6 +8,9 @@ from database import *
 from utils.decorators import scheduler
 from utils.plugin import pluginManager
 from queue import Empty
+import psutil
+import signal
+
 
 async def run():
     #*================== 初始化Wcferry服务 ===================*#
@@ -38,8 +41,21 @@ async def run():
     
     bot.enable_receiving_msg()
 
+    def signal_handler(signum, frame):
+        logger.info("收到终止信号，正在关闭...")
+        bot.cleanup()
+        os._exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+
     logger.success("开始接收消息")
     while bot.is_receiving_msg():
+        if not psutil.sensors_battery().power_plugged:
+            logger.info("电源被拔出, 停止接收消息")
+            for admin in config.admin:
+                bot.sendMsg('电源被拔出, 停止接收消息', admin)
+                bot.cleanup()
+                os._exit(0)
         try:
             msg = bot.get_msg()
             asyncio.create_task(legendBot.process_message(msg))

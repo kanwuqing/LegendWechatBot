@@ -31,7 +31,7 @@ class AI(PluginBase):
             self.key = config["api_key"]
             self.base_url = config["url"]
         
-        self.client = openai.AsyncOpenAI(api_key=self.key, base_url=self.base_url)
+            self.client = openai.AsyncClient(api_key=self.key, base_url=self.base_url)
 
     @on_text_message
     async def query_AI(self, bot: LegendWechatBot, msg: WxMsg):

@@ -59,7 +59,7 @@ class KFC(PluginBase):
                 url = f"https://api.pearktrue.cn/api/kfc?type=json"
                 async with session.get(url) as resp:
                     if resp.status != 200:
-                            logger.warning(f"天气查询失败: {resp.status}")
+                            logger.warning(f"KFC调用失败: {resp.status}")
                             return
                     rsp1 = await resp.json()
             bot.sendMsg(rsp1['text'], group)

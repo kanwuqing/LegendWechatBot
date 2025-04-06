@@ -59,7 +59,7 @@ async def main():
             logger.error(traceback.format_exc())
         
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     cprint.info(Legend_Logo)
     cprint.info(Author)
     cprint.info(Version)

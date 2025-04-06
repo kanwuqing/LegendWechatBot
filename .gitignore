@@ -175,4 +175,8 @@ plugins/ImageDeal/images/*
 plugins/Meme/temp
 plugins/Weather/config.yaml
 plugins/AI/config.yaml
+plugins/GLM/config.yaml
 try.py
+utils/ignore.py
+LegendBot.db
+messgae.db

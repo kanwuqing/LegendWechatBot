@@ -90,6 +90,8 @@ class Weather(PluginBase):
                         return
 
                     self.subs[to] = [city]
+                    bot.sendMsg('订阅成功', to, at)
+                    return
                 
                 elif msg.content.startswith("td "):
                     city = msg.content[3:]
@@ -112,6 +114,13 @@ class Weather(PluginBase):
                         city, day = msg.content.split(' ')
                     else:
                         city, day = msg.content, 0
+                    
+                    try:
+                        day = int(day)
+                    except ValueError:
+                        bot.sendMsg("天数不符合要求", to, at)
+                        return
+
                     if day >= 3:
                         return
                     
@@ -139,7 +148,7 @@ class Weather(PluginBase):
                 return
     
 
-    @schedule('cron', hour=21, minute=24, second=0, misfire_grace_time=None)
+    @schedule('cron', hour=20, minute=30, second=0, misfire_grace_time=None)
     async def send_weather(self, bot: LegendWechatBot):
         for to in self.subs:
             for city in self.subs[to]:

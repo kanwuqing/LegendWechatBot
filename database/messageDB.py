@@ -26,6 +26,7 @@ class Message(DeclarativeBase):
     xml = Column(Text, comment='消息原始xml')
     content = Column(Text, comment='消息内容')
     extra = Column(Text, comment='消息额外信息')
+    thumb = Column(Text, comment='消息缩略图')
     sender = Column(String(40), index=True, comment='消息发送人wxid')
     roomid = Column(String(40), default=None, index=True, comment='消息所在群聊wxid')
     is_at = Column(Boolean, default=False, comment='是否被at')
@@ -74,6 +75,7 @@ class MessageDB(metaclass=Singleton):
                         extra=msg.extra,
                         sender=msg.sender,
                         roomid=msg.roomid,
+                        thumb=msg.thumb,
                         is_at=msg.is_at(self_wxid),
                         timestamp=datetime.now()
                     )
