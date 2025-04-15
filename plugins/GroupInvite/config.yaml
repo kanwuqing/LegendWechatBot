@@ -1,0 +1,4 @@
+GroupInvite:
+  enable: true
+  cmd: 进群
+  description: 发送入群邀请

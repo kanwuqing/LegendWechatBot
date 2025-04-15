@@ -49,19 +49,25 @@ class Weather(PluginBase):
             to, at = msg.roomid, msg.sender
         else:
             to, at = msg.sender, None
-        
+
         if not self.enable:
             return
-        
+
         if msg.content.startswith("天气"):
             if msg.content == '天气':
                 bot.sendMsg("天气查询功能, 每次查询消耗1积分\n命令格式: `天气 国内城市名 天数(只需一个数字, 0~2, 0代表今天, 默认为0)`\n天气预报定点发送命令: `天气 预报 城市`, 仅限群聊使用, 一个群聊最多预报5个城市\n取消订阅城市命令: `天气 td 城市`", to, at)
                 return
-            
+
             try:
                 msg.content = msg.content[3:]
                 if msg.content.startswith("预报 ") and msg.from_group():
                     city = msg.content[3:]
+
+                    # 检查用户积分是否足够
+                    user_points = LegendBotDB().get_points(msg.sender)
+                    if user_points < 1:
+                        bot.sendMsg(f"您的积分不足，当前积分为 {user_points}，每次调用需要 1 积分。", to, at)
+                        return
 
                     async with aiohttp.ClientSession() as session:
                         url = f"https://api.seniverse.com/v3/weather/daily.json?key={self.key}&location={city}&language=zh-Hans&unit=c"
@@ -70,7 +76,7 @@ class Weather(PluginBase):
                                 logger.warning(f"天气查询失败: {resp.status}")
                                 return
                             rsp1 = await resp.json()
-                    
+
                     if 'status_code' in rsp1 and rsp1['status_code'] == "AP010006":
                         bot.sendMsg("城市名错误, 请重新输入", to, at)
                         return
@@ -92,7 +98,7 @@ class Weather(PluginBase):
                     self.subs[to] = [city]
                     bot.sendMsg('订阅成功', to, at)
                     return
-                
+
                 elif msg.content.startswith("td "):
                     city = msg.content[3:]
                     if to in self.subs:
@@ -114,7 +120,7 @@ class Weather(PluginBase):
                         city, day = msg.content.split(' ')
                     else:
                         city, day = msg.content, 0
-                    
+
                     try:
                         day = int(day)
                     except ValueError:
@@ -123,7 +129,13 @@ class Weather(PluginBase):
 
                     if day >= 3:
                         return
-                    
+
+                    # 检查用户积分是否足够
+                    user_points = LegendBotDB().get_points(msg.sender)
+                    if user_points < 1:
+                        bot.sendMsg(f"您的积分不足，当前积分为 {user_points}，每次调用需要 1 积分。", to, at)
+                        return
+
                     async with aiohttp.ClientSession() as session:
                         url = f"https://api.seniverse.com/v3/weather/daily.json?key={self.key}&location={city}&language=zh-Hans&unit=c"
                         async with session.get(url) as resp:
@@ -131,18 +143,18 @@ class Weather(PluginBase):
                                 logger.warning(f"天气查询失败: {resp.status}")
                                 return
                             rsp1 = await resp.json()
-                    
+
                     if 'status_code' in rsp1 and rsp1['status_code'] == "AP010006":
                         bot.sendMsg("城市名错误, 请重新输入", to, at)
                         return
-                    
+
                     rsp = rsp1["results"][0]["daily"][day]
                     upd = rsp1['results'][0]['last_update']
                     res = f"{city}{rsp['date']}天气, 更新于{upd}\n白天天气:{rsp['text_day']}, 夜间天气:{rsp['text_night']}\n最高温: {rsp['high']}, 最低温: {rsp['low']}\n降水概率: {rsp['precip']}%, 湿度: {rsp['humidity']}\n风力风向: {rsp['wind_direction']}风{rsp['rainfall']}级, 风速: {rsp['wind_speed']}"
 
                     bot.sendMsg(res, to, at)
                     LegendBotDB().add_points(msg.sender, -1)
-                
+
             except:
                 logger.debug(f"天气查询失败: {traceback.format_exc()}")
                 return

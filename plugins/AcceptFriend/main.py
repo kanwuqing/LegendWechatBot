@@ -41,6 +41,9 @@ class AcceptFriend(PluginBase):
             v3 = msg_.get('encryptusername')
             # 获取票据
             v4 = msg_.get('ticket')
+            content = msg_.get('content')
+            if content not in ['我发誓已经给LegendBot过Star了']:
+                return
             # 获取用户名
             userName = msg_.get('fromusername')
             # 如果接受新好友请求成功

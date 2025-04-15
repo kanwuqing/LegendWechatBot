@@ -1,0 +1,5 @@
+Admin:
+  cmd: admin
+  description: 管理员命令
+  author: Kanwuqing
+  enable: true

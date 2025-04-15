@@ -1,0 +1,4 @@
+Idiom:
+  enable: true
+  cmd: 成语
+  description: 成语相关功能

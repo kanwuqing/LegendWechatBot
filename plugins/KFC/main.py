@@ -40,14 +40,21 @@ class KFC(PluginBase):
             return
         
         if msg.content == 'kfc':
-            async with aiohttp.ClientSession() as session:
-                url = f"https://api.pearktrue.cn/api/kfc?type=json"
-                async with session.get(url) as resp:
-                    if resp.status != 200:
-                        logger.warning(f"天气查询失败: {resp.status}")
-                        return
-                    rsp1 = await resp.json()
-            bot.sendMsg(rsp1['text'].replace('\\n', '\n'), to, at)
+            try:
+                LegendBotDB().set_running(msg.sender, True)
+                async with aiohttp.ClientSession() as session:
+                    url = f"https://api.pearktrue.cn/api/kfc?type=json"
+                    async with session.get(url) as resp:
+                        if resp.status != 200:
+                            logger.warning(f"天气查询失败: {resp.status}")
+                            return
+                        rsp1 = await resp.json()
+                bot.sendMsg(rsp1['text'].replace('\\n', '\n'), to, at)
+                LegendBotDB().set_running(msg.sender, False)
+            except Exception as e:
+                logger.error(f"KFC查询失败: {e}")
+                LegendBotDB().set_running(msg.sender, False)
+                bot.sendMsg("KFC查询失败", to, at)
     
     @schedule('cron', day_of_week='thu', hour=17, minute=0, second=0, misfire_grace_time=None)
     async def send_kfc(self, bot: LegendWechatBot):

@@ -38,7 +38,7 @@ class AI(PluginBase):
         """处理用户发送的 OpenAI 查询命令"""
         if not self.enable:
             return
-        
+
         async with sem['processAI']:
 
             if msg.from_group():
@@ -50,19 +50,24 @@ class AI(PluginBase):
                 if msg.content == 'ai':
                     bot.sendMsg("与AI对话, 每次消耗3积分, 命令格式: `ai 模型名称(默认为deepseek V3) 内容`\n目前支持的模型:\n1.v3(deepseekV3), r1(deepseekR1)", to, at)
                     return
-                
+
                 query = msg.content[3:]
 
                 if query.count(' ') == 1:
                     model, query = query.split(' ')
-                
                 else:
                     model = "v3"
 
                 try:
+                    # 检查用户积分是否足够
+                    user_points = LegendBotDB().get_points(msg.sender)
+                    if user_points < 3:
+                        bot.sendMsg(f"您的积分不足，当前积分为 {user_points}，每次调用需要 3 积分。", to, at)
+                        return
+
                     LegendBotDB().set_running(msg.sender, True)
                     # 调用 OpenAI API
-                    logger.debug(model)
+                    bot.sendMsg("正在调用AI, 请稍等...", to, at)
                     response = await self.client.chat.completions.create(
                         model=self.models[model],  # 使用的模型
                         messages=[
@@ -71,7 +76,8 @@ class AI(PluginBase):
                         ],
                     )
 
-                    logger.debug('AI已返回')
+                    logger.debug(response)
+                    # todo 添加思考reasoning
 
                     # 获取 API 返回的内容
                     result = response.choices[0].message.content.replace("\\n", "\n")
@@ -85,3 +91,56 @@ class AI(PluginBase):
                     logger.error(f"调用 OpenAI API 时发生错误: {e}")
                     logger.error(traceback.format_exc())
                     LegendBotDB().set_running(msg.sender, False)
+            """处理用户发送的 OpenAI 查询命令"""
+            if not self.enable:
+                return
+            
+            async with sem['processAI']:
+
+                if msg.from_group():
+                    to, at = msg.roomid, msg.sender
+                else:
+                    to, at = msg.sender, None
+
+                if msg.content.startswith("ai"):
+                    if msg.content == 'ai':
+                        bot.sendMsg("与AI对话, 每次消耗3积分, 命令格式: `ai 模型名称(默认为deepseek V3) 内容`\n目前支持的模型:\n1.v3(deepseekV3), r1(deepseekR1)", to, at)
+                        return
+                    
+                    query = msg.content[3:]
+
+                    if query.count(' ') == 1:
+                        model, query = query.split(' ')
+                    
+                    else:
+                        model = "v3"
+
+                    # logger.debug(model, query)
+
+                    try:
+                        LegendBotDB().set_running(msg.sender, True)
+                        # 调用 OpenAI API
+                        bot.sendMsg("正在调用AI, 请稍等...", to, at)
+                        response = await self.client.chat.completions.create(
+                            model=self.models[model],  # 使用的模型
+                            messages=[
+                                # {"role": "system", "content": "你是一个帮助用户回答问题的助手。"},
+                                {"role": "user", "content": query}
+                            ],
+                        )
+
+                        logger.debug(response)
+                        #todo 添加思考reasoning
+
+                        # 获取 API 返回的内容
+                        result = response.choices[0].message.content.replace("\\n", "\n")
+
+                        # 发送结果给用户
+                        bot.sendMsg(f"{result}", to, at)
+                        LegendBotDB().set_running(msg.sender, False)
+                        LegendBotDB().add_points(msg.sender, -3)
+
+                    except Exception as e:
+                        logger.error(f"调用 OpenAI API 时发生错误: {e}")
+                        logger.error(traceback.format_exc())
+                        LegendBotDB().set_running(msg.sender, False)

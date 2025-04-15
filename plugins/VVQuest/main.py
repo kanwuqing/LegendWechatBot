@@ -48,45 +48,47 @@ class VVQuest(PluginBase):
                 to, at = msg.roomid, msg.sender
             else:
                 to, at = msg.sender, None
-            
+
             if not self.enable:
                 return
-            
+
             if msg.content == 'vv':
                 bot.sendMsg(f'智能检索张维为表情包, 项目连接:https://github.com/DanielZhangyc/VVQuest\n使用方法: vv [关键词]\n注意事项: 请不要频繁请求', to, at)
                 return
+
             if msg.content.startswith('vv '):
                 query = msg.content[3:]
                 if query == '':
                     return
 
+                # 检查用户积分是否足够
+                user_points = LegendBotDB().get_points(msg.sender)
+                if user_points < 1:
+                    bot.sendMsg(f"您的积分不足，当前积分为 {user_points}，每次调用需要 1 积分。", to, at)
+                    return
+
                 LegendBotDB().set_running(msg.sender, True)
-                # task = threading.Thread(target=self.getRes, args=(bot, msg, to, at))
-                # task.start()
-                # task.join()
 
-                
-                # async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=60)) as session:
-                #     async with session.get(f'https://api.zvv.quest/search?q={query}&n=1') as response:
-                #         res = await response.json()
-                
+                # 调用 API 检索表情包
                 res = await run_sync(requests.get)(f'https://api.zvv.quest/search?q={query}&n=1', timeout=20)
-                # res = requests.get(f'https://api.zvv.quest/search?q={query}&n=1').json()
-
                 logger.debug(res)
                 res = res.json()
-                
+
+                # 发送表情包图片
                 bot.send_image(res['data'][0], to)
+
+                # 扣除积分
                 LegendBotDB().add_points(msg.sender, -1)
 
                 LegendBotDB().set_running(msg.sender, False)
+
         except TimeoutError:
             res = await run_sync(self.im.search)(query, 1)
 
             if len(res) == 0:
                 bot.sendMsg('未找到相关表情包', to, at)
                 return
-            
+
             original_file = res[0].replace('\\', '/')
             file_extension = os.path.splitext(original_file)[1]
             hash_object = hashlib.md5(original_file.encode())
@@ -105,6 +107,7 @@ class VVQuest(PluginBase):
 
             # 删除临时文件
             os.remove(abs_temp_file_path)
+
         except Exception as e:
             logger.error(e)
             logger.error(traceback.format_exc())

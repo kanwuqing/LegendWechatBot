@@ -163,9 +163,6 @@ async def handle_message(bot: LegendWechatBot, msg: WxMsg, to, at):
     result = parser.parse(msg.content)
 
     if not result.matched:
-        # if not isinstance(result.error_info, SpecialOptionTriggered):
-        #     bot.sendMsg(result.error_info, to, at)
-        # return
         return
 
     if not result.subcommands:
@@ -181,6 +178,13 @@ async def handle_message(bot: LegendWechatBot, msg: WxMsg, to, at):
 
         elif subcommand == "preview":
             key = str(sub_result.args["key"])
+
+            # 检查用户积分是否足够
+            user_points = LegendBotDB().get_points(msg.sender)
+            if user_points < 2:
+                bot.sendMsg(f"您的积分不足，当前积分为 {user_points}，每次调用需要 2 积分。", to, at)
+                return
+
             res, filename = await generate_meme_preview(key)
             bot.sendMsg(res, to, at)
             if filename:
@@ -188,7 +192,8 @@ async def handle_message(bot: LegendWechatBot, msg: WxMsg, to, at):
                     bot.send_emotion(os.path.abspath(filename), to)
                 else:
                     bot.send_image(os.path.abspath(filename), to)
-                LegendBotDB.add_points(msg.sender, -2)
+                LegendBotDB().add_points(msg.sender, -2)  # 扣除积分
+                logger.debug(f"filename: {filename}")
                 os.remove(filename)
 
         elif subcommand == "generate":
@@ -213,6 +218,12 @@ async def handle_message(bot: LegendWechatBot, msg: WxMsg, to, at):
                     else:
                         args[option] = option_result.value
 
+                # 检查用户积分是否足够
+                user_points = LegendBotDB().get_points(msg.sender)
+                if user_points < 2:
+                    bot.sendMsg(f"您的积分不足，当前积分为 {user_points}，每次调用需要 2 积分。", to, at)
+                    return
+
                 res, filename = await run_sync(generate_meme)(key, images, texts, args, msg)
                 logger.debug(at)
                 bot.sendMsg(res, to, at)
@@ -222,6 +233,6 @@ async def handle_message(bot: LegendWechatBot, msg: WxMsg, to, at):
                         bot.send_emotion(os.path.abspath(filename), to)
                     else:
                         bot.send_image(os.path.abspath(filename), to)
-                    LegendBotDB().add_points(msg.sender, -2)
+                    LegendBotDB().add_points(msg.sender, -2)  # 扣除积分
                     os.remove(filename)
         return

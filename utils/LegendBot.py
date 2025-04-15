@@ -13,14 +13,6 @@ import traceback
 import time
 import random
 import os
-from .changeHandler import restartProgram
-
-try:
-    import utils.ignore as ignore
-except ModuleNotFoundError:
-    flag = False
-else:
-    flag = True
 
 class LegendWechatBot(Wcf):
     def __init__(self, host: str = None, port: int = 10086, debug: bool = True, block: bool = True) -> None:
@@ -93,37 +85,12 @@ class LegendBot:
                 if msg.type == 1:  # 文本消息
                     await self.msgDB.save_message(msg, self.bot.self_wxid)
 
-                    if msg.sender in config.admin:
-                        logger.info(f"管理员消息: {msg.content}")
-
-                        if msg.content == '重启程序':
-                            restartProgram()
-                            return
-                        
-                        elif msg.content == '结束':
-                            self.bot.cleanup()
-                            os._exit(0)
-
-                        elif '加群' in msg.content:
-                            self.DB.set_chatroom_whitelist(to, True)
-                            self.bot.sendMsg('已添加到白名单', to, at)
-                            return
-                        
-                        elif flag:
-                            if msg.content == 'tcp':
-                                links = await ignore.fetch_info_from_website()
-                                if links:
-                                    self.bot.sendMsg(links, to, at)
-                                    return
-                                else:
-                                    self.bot.sendMsg('获取 TCP 地址失败', to, at)
-                                    return
-
                     if dfa.exists(msg.content):
                         logger.warning(f"检测到敏感词: {msg.content}")
                         self.DB.add_black(msg.sender, 2)
                         self.bot.sendMsg(f'因为言语过激, 黑名单指数+2, 请注意\n{dfa.filter_all(msg.content)}', to, at)
-                        return
+                        if msg.sender not in config.admin:
+                            return
 
                     if ((msg.from_group() and msg.is_at(self.bot.self_wxid)) or not msg.from_group()):
                         if self.DB.get_running(msg.sender):

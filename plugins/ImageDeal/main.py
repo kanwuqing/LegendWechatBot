@@ -201,7 +201,7 @@ class ImageDeal(PluginBase):
         return size / 1024 / 1024
     
     @schedule('interval', days=1)
-    async def _del(self):
+    async def _del(self, *args, **kwargs):
         if self.autoDel:
             try:
                 shutil.rmtree(self.folder)

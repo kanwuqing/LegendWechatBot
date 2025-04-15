@@ -33,6 +33,8 @@ class Chatroom(Base):
     chatroom_id = Column(String(20), primary_key=True, nullable=False, unique=True, index=True, autoincrement=False, comment='chatroom_id')
     members = Column(JSON, nullable=False, default=list, comment='members')
     whitelist = Column(Boolean, nullable=False, default=False, comment='whitelist')
+    description = Column(Text, default=None, comment='description')
+    admins = Column(JSON, nullable=False, default=list, comment='admins')
 
 
 class LegendBotDB(metaclass=Singleton):
@@ -40,6 +42,8 @@ class LegendBotDB(metaclass=Singleton):
         self.database_url = config.DBConfig["LegendBotDB-url"]
         self.engine = create_engine(self.database_url)
         self.DBSession = sessionmaker(bind=self.engine)
+
+        # self.recreate()
 
         if flag:
             self.reset_all_running_stat()
@@ -60,6 +64,19 @@ class LegendBotDB(metaclass=Singleton):
             raise
 
     # USER
+
+    def get_user_bywxid(self, wxid: str):
+        return self._execute_in_queue(self._get_user_bywxid, wxid)
+
+    def _get_user_bywxid(self, wxid: str):
+        session = self.DBSession()
+        try:
+            user = session.query(User).filter_by(wxid=wxid).first()
+            return {'wxid': user.wxid, 'points': user.points, 'running': user.running, 'blacked': user.blacked, 'lastSign': user.lastSign, 'maxSign': user.maxSign}
+        except SQLAlchemyError as e:
+            session.rollback()
+            logger.error(f"获取用户 {wxid} 失败: {e}")
+            return None
 
     def get_black(self, wxid: str) -> int:
         return self._execute_in_queue(self._get_black, wxid)
@@ -253,14 +270,6 @@ class LegendBotDB(metaclass=Singleton):
             session.rollback()
             logger.error(f"重置所有用户运行状态失败: {e}")
 
-    def get_leaderboard(self, count: int) -> list:
-        session = self.DBSession()
-        try:
-            users = session.query(User).order_by(User.points.desc()).limit(count).all()
-            return [(user.wxid, user.points) for user in users]
-        finally:
-            session.close()
-
     def safe_trade_points(self, trader_wxid: str, target_wxid: str, num: int) -> bool:
         return self._execute_in_queue(self._safe_trade_points, trader_wxid, target_wxid, num)
 
@@ -314,6 +323,17 @@ class LegendBotDB(metaclass=Singleton):
             return [chatroom.chatroom_id for chatroom in chatrooms]
         finally:
             session.close()
+    
+    def get_chatrooms(self) -> list:
+        return self._execute_in_queue(self._get_chatrooms)
+
+    def _get_chatrooms(self):
+        session = self.DBSession()
+        try:
+            chatrooms = session.query(Chatroom).filter_by(whitelist=True).all()
+            return [{'id': chatroom.chatroom_id, 'description': chatroom.description, 'members': chatroom.members, 'whitelist': chatroom.whitelist, 'admins': chatroom.admins} for chatroom in chatrooms]
+        finally:
+            session.close()
 
     def get_chatroom_members(self, chatroom_id: str) -> set:
         session = self.DBSession()
@@ -335,6 +355,9 @@ class LegendBotDB(metaclass=Singleton):
             session.close()
 
     def set_chatroom_whitelist(self, chatroom_id: str, whitelist: bool) -> bool:
+        return self._execute_in_queue(self._set_chatroom_whitelist, chatroom_id, whitelist)
+
+    def _set_chatroom_whitelist(self, chatroom_id: str, whitelist: bool) -> bool:
         session = self.DBSession()
         try:
             chatroom = session.query(Chatroom).filter_by(chatroom_id=chatroom_id).first()
@@ -351,6 +374,36 @@ class LegendBotDB(metaclass=Singleton):
             return False
         finally:
             session.close()
+    
+    def get_description(self, chatroom_id: str) -> str:
+        session = self.DBSession()
+        try:
+            chatroom = session.query(Chatroom).filter_by(chatroom_id=chatroom_id).first()
+            return chatroom.description
+        finally:
+            session.close()
+    
+    def set_description(self, chatroom_id: str, description: str) -> bool:
+        return self._execute_in_queue(self._set_description, chatroom_id, description)
+
+    def _set_description(self, chatroom_id: str, description: str) -> bool:
+        session = self.DBSession()
+        try:
+            chatroom = session.query(Chatroom).filter_by(chatroom_id=chatroom_id).first()
+            if not chatroom:
+                chatroom = Chatroom(chatroom_id=chatroom_id, description=description)
+                session.add(chatroom)
+            chatroom.description = description
+            session.commit()
+            logger.info(f"群组 {chatroom_id} 描述更新成功")
+            return True
+        except Exception as e:
+            session.rollback()
+            logger.error(f"群组 {chatroom_id} 描述更新失败: {e}")
+            return False
+        finally:
+            session.close()
+            
 
     def __del__(self):
         if hasattr(self, 'executor'):
